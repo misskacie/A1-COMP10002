@@ -1,13 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
-
-int main(int argv, char *argc[]){
-    int nums[4] = {1,2,3};
-    int nums2[4] = {2,3,6};
+#define DEBUG 1
+void
+do_plus(int varnum, int nums[], int nums2[]) {
     int result[4];
     int out;
     int carryover = 0;
-    for(int i = 0; i < 5; i++){
+    for(int i = 0; i < 2; i++){
         out = nums[i]+ nums2[i];
         if (carryover != 0){
             out += carryover;
@@ -20,13 +19,25 @@ int main(int argv, char *argc[]){
 
         }
         result[i] = out;
-
     }
-    for(int i = 3; i >= 0 ;i--){
+    #if DEBUG
+    for(int i = 1; i >= 0 ;i--){
         printf("%d",result[i]);
-
-
     }
+    #endif
+}
+int test (int *nums){
+    printf("%d",*nums);
+
+
+}
+
+int main(int argv, char *argc[]){
+    int nums[4][2] = {{1,2},{3,4},{5,6},{7,8}};
+    int nums2[4][2] = {{1,1},{1,1},{1,1},{1,1}};
+   // do_plus(3,nums[0],nums2[0]);
+    int n = atoi("1");
+    printf("%d",n);
 
 
 

@@ -50,7 +50,7 @@
 #include <unistd.h>
 
 /* All necessary #defines provided as part of the initial skeleton */
-
+#define DEBUG 1
 #define INTSIZE	500	/* max number of digits per integer value */
 #define LINELEN	999	/* maximum length of any input line */
 #define NVARS	26	/* number of different variables */
@@ -101,8 +101,9 @@ int  get_second_value(longint_t vars[], char *rhsarg,
 	longint_t *second_value);
 int  to_varnum(char ident);
 void do_print(int varnum, longint_t *var);
-void do_assign(longint_t *var1, longint_t *var2);
-void do_plus(longint_t *var1, longint_t *var2);
+void do_assign(longint_t var1[], longint_t var2[]);
+void do_plus(int varnum, int num[], 
+	int num2[]);
 void zero_vars(longint_t vars[]);
 longint_t parse_num(char *rhs);
 
@@ -115,7 +116,7 @@ longint_t parse_num(char *rhs);
 int
 main(int argc, char *argv[]) {
 	char line[LINELEN+1] = {0};
-	longint_t vars[NVARS];
+	longint_t vars[NVARS][INTSIZE];
 
 	zero_vars(vars);
 	print_prompt();
@@ -205,7 +206,7 @@ read_line(char *line, int maxlen) {
 void
 process_line(longint_t vars[], char *line) {
 	int varnum, optype, status;
-	longint_t second_value;
+	longint_t second_value[INTSIZE];
 
 	/* determine the LHS variable, it
 	   must be first character in compacted line
@@ -240,7 +241,7 @@ process_line(longint_t vars[], char *line) {
 			print_error("no RHS supplied");
 			return;
 		}
-		status = get_second_value(vars, line+2, &second_value);
+		status = get_second_value(vars, line+2, second_value);
 		if (status==ERROR) {
 			print_error("RHS argument is invalid");
 			return;
@@ -250,11 +251,11 @@ process_line(longint_t vars[], char *line) {
 	/* finally, do the actual operation
 	*/
 	if (optype == PRINT) {
-		do_print(varnum, vars+varnum);
+		do_print(varnum, vars[varnum]);
 	} else if (optype == ASSIGN) {
-		do_assign(vars+varnum, &second_value);
+		do_assign(vars[varnum], second_value);
 	} else if (optype == PLUS) {
-		do_plus(vars+varnum, &second_value);
+		do_plus(varnum, vars, second_value);
 	// you will need to add further operators here
 	} else {
 		print_error("operation not available yet");
@@ -285,20 +286,23 @@ to_varnum(char ident) {
 */
 int
 get_second_value(longint_t vars[], char *rhsarg,
-			longint_t *second_value) {
+			longint_t second_value[]) {
 	char *p;
 	int varnum2;
 	if (isdigit(*rhsarg)) {
 		/* first character is a digit, so RHS is a number
 		   now check the rest of RHS for validity */
+		second_value[0] = parse_num(rhsarg[0]); 
+		int i = 1;
 		for (p=rhsarg+1; *p; p++) {
 			if (!isdigit(*p)) {
 				/* nope, found an illegal character */
 				return ERROR;
-			}
+			} 
+			second_value[i] = parse_num(rhsarg[i]);
+			i++; 
 		}
-		/* nothing wrong, ok to convert */
-		*second_value = parse_num(rhsarg);
+		
 		return !ERROR;
 	} else {
 		/* argument is not a number, so should be a variable */
@@ -308,7 +312,7 @@ get_second_value(longint_t vars[], char *rhsarg,
 			return ERROR;
 		}
 		/* and finally, get that variable's value */
-		do_assign(second_value, vars+varnum2);
+		do_assign(second_value, vars[varnum2]);
 		return !ERROR;
 	}
 	return ERROR;
@@ -317,11 +321,13 @@ get_second_value(longint_t vars[], char *rhsarg,
 /* Set the vars array to all zero values
 */
 void
-zero_vars(longint_t vars[]) {
+zero_vars(longint_t vars[][INTSIZE]) {
 	int i;
-	longint_t zero = LONG_ZERO;
+	//longint_t zero[INTSIZE] = {LONG_ZERO};
 	for (i=0; i<NVARS; i++) {
-		do_assign(vars+i, &zero);
+		for (int j = 0; j<INTSIZE; j++){
+			vars[i][j] = 0;
+		}
 	}
 	return;
 }
@@ -352,9 +358,12 @@ parse_num(char *rhs) {
 /* Print out a longint value
 */
 void
-do_print(int varnum, longint_t *var) {
+do_print(int varnum, longint_t var[]) {
 	printf("register %c: ", varnum+CH_A);
-	printf("%d\n", *var);
+	for (int i = INTSIZE - 1; i >= 0; i++){
+		printf("%d", var[i]);
+	}
+	printf("\n");
 }
 
 /****************************************************************/
@@ -366,8 +375,10 @@ do_print(int varnum, longint_t *var) {
 
 */
 void
-do_assign(longint_t *var1, longint_t *var2) {
-	*var1 = *var2;
+do_assign(longint_t var1[], longint_t var2[]) {
+	for (int i = 0; i < INTSIZE; i++){
+		var1[i] = var2[i];
+	}
 }
 
 /****************************************************************/
@@ -376,8 +387,29 @@ do_assign(longint_t *var1, longint_t *var2) {
    using var2 to compute var1 = var1 + var2
 */
 void
-do_plus(longint_t *var1, longint_t *var2) {
-	*var1 += *var2;
+do_plus(int varnum, int num[], int num2[]) {
+    int result[INTSIZE];
+    int out;
+    int carryover = 0;
+    for(int i = 0; i < INTSIZE; i++){
+        out = num[i]+ num2[i];
+        if (carryover != 0){
+            out += carryover;
+            carryover = 0;
+
+        }
+        if (out >= 10){
+            out -=10;
+            carryover += 1;
+
+        }
+        result[i] = out;
+    }
+    #if DEBUG
+    for(int i = 1; i >= 0 ;i--){
+        printf("%d\n",result[i]);
+    }
+    #endif
 }
 
 /*****************************************************************

@@ -80,7 +80,11 @@
 
 /* Placeholder typedef for skeleton code
 */
-typedef int longint_t;
+typedef struct{
+	int length;
+	int num[INTSIZE];
+} longint_t;
+
 #define LONG_ZERO 0
 #define LONG_ONE  1
 
@@ -97,15 +101,15 @@ void print_tadaa();
 void print_error(char *message);
 int  read_line(char *line, int maxlen);
 void process_line(longint_t vars[], char *line);
-int  get_second_value(longint_t vars[], char *rhsarg,
+int  get_second_value(longint_t vars, char *rhsarg,
 	longint_t *second_value);
 int  to_varnum(char ident);
-void do_print(int varnum, longint_t *var);
-void do_assign(longint_t var1[], longint_t var2[]);
-void do_plus(int varnum, int num[], 
-	int num2[]);
+void do_print(int varnum, longint_t var);
+void do_assign(longint_t *var1, longint_t *var2);
+void do_plus(longint_t var1, longint_t var2);
 void zero_vars(longint_t vars[]);
-longint_t parse_num(char *rhs);
+void reverse_array(longint_t *var);
+// int parse_num(char *rhs);
 
 
 
@@ -116,8 +120,7 @@ longint_t parse_num(char *rhs);
 int
 main(int argc, char *argv[]) {
 	char line[LINELEN+1] = {0};
-	longint_t vars[NVARS][INTSIZE];
-
+	longint_t vars[NVARS];
 	zero_vars(vars);
 	print_prompt();
 	while (read_line(line, LINELEN)) {
@@ -198,6 +201,21 @@ read_line(char *line, int maxlen) {
 	}
 	return ((i>0) || (c!=EOF));
 }
+/****************************************************************/
+
+/* Reverse an array
+*/
+void 
+reverse_array(longint_t *var){
+	longint_t tmp;
+	tmp = *var;
+	int i = 0;
+	for (int j = var->length - 1; j >= 0; j--){
+		var->num[i] = tmp.num[j];
+		i++;
+	}
+	return;
+}
 
 /****************************************************************/
 
@@ -206,7 +224,7 @@ read_line(char *line, int maxlen) {
 void
 process_line(longint_t vars[], char *line) {
 	int varnum, optype, status;
-	longint_t second_value[INTSIZE];
+	longint_t second_value;
 
 	/* determine the LHS variable, it
 	   must be first character in compacted line
@@ -241,21 +259,21 @@ process_line(longint_t vars[], char *line) {
 			print_error("no RHS supplied");
 			return;
 		}
-		status = get_second_value(vars, line+2, second_value);
+		status = get_second_value(vars[varnum], line+2, &second_value);
 		if (status==ERROR) {
 			print_error("RHS argument is invalid");
 			return;
 		}
 	}
-
+	reverse_array(&second_value);
 	/* finally, do the actual operation
 	*/
 	if (optype == PRINT) {
 		do_print(varnum, vars[varnum]);
 	} else if (optype == ASSIGN) {
-		do_assign(vars[varnum], second_value);
+		do_assign(&vars[varnum], &second_value);
 	} else if (optype == PLUS) {
-		do_plus(varnum, vars, second_value);
+		do_plus(vars[varnum], second_value);
 	// you will need to add further operators here
 	} else {
 		print_error("operation not available yet");
@@ -285,23 +303,28 @@ to_varnum(char ident) {
    should start at the pointer that is passed
 */
 int
-get_second_value(longint_t vars[], char *rhsarg,
-			longint_t second_value[]) {
+get_second_value(longint_t vars, char *rhsarg,
+			longint_t *second_value) {
 	char *p;
 	int varnum2;
 	if (isdigit(*rhsarg)) {
 		/* first character is a digit, so RHS is a number
 		   now check the rest of RHS for validity */
-		second_value[0] = parse_num(rhsarg[0]); 
+		second_value->num[0] = *rhsarg - CH_ZERO; 
 		int i = 1;
 		for (p=rhsarg+1; *p; p++) {
 			if (!isdigit(*p)) {
 				/* nope, found an illegal character */
 				return ERROR;
 			} 
-			second_value[i] = parse_num(rhsarg[i]);
+			second_value->num[i] = *(rhsarg + i) - CH_ZERO;
 			i++; 
 		}
+		second_value->length = i;
+
+		#if DEBUG
+		printf("DEBUG get_second_value %d\n", second_value->num[0]);
+		#endif
 		
 		return !ERROR;
 	} else {
@@ -312,7 +335,7 @@ get_second_value(longint_t vars[], char *rhsarg,
 			return ERROR;
 		}
 		/* and finally, get that variable's value */
-		do_assign(second_value, vars[varnum2]);
+		do_assign(second_value, &vars);
 		return !ERROR;
 	}
 	return ERROR;
@@ -321,12 +344,10 @@ get_second_value(longint_t vars[], char *rhsarg,
 /* Set the vars array to all zero values
 */
 void
-zero_vars(longint_t vars[][INTSIZE]) {
-	int i;
-	//longint_t zero[INTSIZE] = {LONG_ZERO};
-	for (i=0; i<NVARS; i++) {
-		for (int j = 0; j<INTSIZE; j++){
-			vars[i][j] = 0;
+zero_vars(longint_t vars[]) {
+	for (int i=0; i<NVARS; i++) {
+		for (int j=0; j<INTSIZE; j++){
+			vars[i].num[j] = 0;
 		}
 	}
 	return;
@@ -348,20 +369,20 @@ of the existing ones, ok?
 
 /* Create an internal-format number out of a string
 */
-longint_t
-parse_num(char *rhs) {
-	return atoi(rhs);
-}
+// int
+// parse_num(char *rhs) {
+// 	return atoi(rhs);
+// }
 
 /****************************************************************/
 
 /* Print out a longint value
 */
 void
-do_print(int varnum, longint_t var[]) {
+do_print(int varnum, longint_t var) {
 	printf("register %c: ", varnum+CH_A);
-	for (int i = INTSIZE - 1; i >= 0; i++){
-		printf("%d", var[i]);
+	for (int i = var.length - 1; i >= 0; i--){
+		printf("%d", var.num[i]);
 	}
 	printf("\n");
 }
@@ -375,10 +396,8 @@ do_print(int varnum, longint_t var[]) {
 
 */
 void
-do_assign(longint_t var1[], longint_t var2[]) {
-	for (int i = 0; i < INTSIZE; i++){
-		var1[i] = var2[i];
-	}
+do_assign(longint_t *var1, longint_t *var2) {
+	*var1 = *var2;
 }
 
 /****************************************************************/
@@ -387,12 +406,12 @@ do_assign(longint_t var1[], longint_t var2[]) {
    using var2 to compute var1 = var1 + var2
 */
 void
-do_plus(int varnum, int num[], int num2[]) {
-    int result[INTSIZE];
+do_plus(longint_t var1, longint_t var2) {
+    longint_t result;
     int out;
     int carryover = 0;
     for(int i = 0; i < INTSIZE; i++){
-        out = num[i]+ num2[i];
+        out = var1.num[i]+ var2.num[i];
         if (carryover != 0){
             out += carryover;
             carryover = 0;
@@ -403,11 +422,12 @@ do_plus(int varnum, int num[], int num2[]) {
             carryover += 1;
 
         }
-        result[i] = out;
+        result.num[i] = out;
+		result.length = i + 1;
     }
     #if DEBUG
-    for(int i = 1; i >= 0 ;i--){
-        printf("%d\n",result[i]);
+    for(int i = result.length - 1; i >= 0 ;i--){
+        printf("%d\n",result.num[i]);
     }
     #endif
 }

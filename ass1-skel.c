@@ -50,7 +50,7 @@
 #include <unistd.h>
 
 /* All necessary #defines provided as part of the initial skeleton */
-#define DEBUG 1
+#define DEBUG 0
 #define INTSIZE	500	/* max number of digits per integer value */
 #define LINELEN	999	/* maximum length of any input line */
 #define NVARS	26	/* number of different variables */
@@ -83,7 +83,7 @@
 typedef struct{
 	int length;
 	int num[INTSIZE];
-} longint_t;
+} longint_t;	
 
 #define LONG_ZERO 0
 #define LONG_ONE  1
@@ -101,12 +101,11 @@ void print_tadaa();
 void print_error(char *message);
 int  read_line(char *line, int maxlen);
 void process_line(longint_t vars[], char *line);
-int  get_second_value(longint_t vars, char *rhsarg,
-	longint_t *second_value);
+int  get_second_value(longint_t vars[], char *rhsarg, longint_t *second_value);
 int  to_varnum(char ident);
 void do_print(int varnum, longint_t var);
 void do_assign(longint_t *var1, longint_t *var2);
-void do_plus(longint_t var1, longint_t var2);
+void do_plus(longint_t *var1, longint_t var2);
 void zero_vars(longint_t vars[]);
 void reverse_array(longint_t *var);
 // int parse_num(char *rhs);
@@ -259,13 +258,16 @@ process_line(longint_t vars[], char *line) {
 			print_error("no RHS supplied");
 			return;
 		}
-		status = get_second_value(vars[varnum], line+2, &second_value);
+		status = get_second_value(vars, line+2, &second_value);
+		
 		if (status==ERROR) {
 			print_error("RHS argument is invalid");
 			return;
 		}
 	}
-	reverse_array(&second_value);
+	// printf("->%d %d %d\n",vars[varnum].num[0], vars[varnum].num[1],vars[varnum].num[2]);
+	
+	// printf("->%d %d %d\n",vars[varnum].num[0], vars[varnum].num[1],vars[varnum].num[2]);
 	/* finally, do the actual operation
 	*/
 	if (optype == PRINT) {
@@ -273,7 +275,7 @@ process_line(longint_t vars[], char *line) {
 	} else if (optype == ASSIGN) {
 		do_assign(&vars[varnum], &second_value);
 	} else if (optype == PLUS) {
-		do_plus(vars[varnum], second_value);
+		do_plus(&vars[varnum], second_value);
 	// you will need to add further operators here
 	} else {
 		print_error("operation not available yet");
@@ -303,7 +305,7 @@ to_varnum(char ident) {
    should start at the pointer that is passed
 */
 int
-get_second_value(longint_t vars, char *rhsarg,
+get_second_value(longint_t vars[], char *rhsarg,
 			longint_t *second_value) {
 	char *p;
 	int varnum2;
@@ -321,11 +323,7 @@ get_second_value(longint_t vars, char *rhsarg,
 			i++; 
 		}
 		second_value->length = i;
-
-		#if DEBUG
-		printf("DEBUG get_second_value %d\n", second_value->num[0]);
-		#endif
-		
+		reverse_array(second_value);
 		return !ERROR;
 	} else {
 		/* argument is not a number, so should be a variable */
@@ -335,7 +333,7 @@ get_second_value(longint_t vars, char *rhsarg,
 			return ERROR;
 		}
 		/* and finally, get that variable's value */
-		do_assign(second_value, &vars);
+		do_assign(second_value, &vars[varnum2]);
 		return !ERROR;
 	}
 	return ERROR;
@@ -350,7 +348,6 @@ zero_vars(longint_t vars[]) {
 			vars[i].num[j] = 0;
 		}
 	}
-	return;
 }
 
 /*****************************************************************
@@ -406,30 +403,56 @@ do_assign(longint_t *var1, longint_t *var2) {
    using var2 to compute var1 = var1 + var2
 */
 void
-do_plus(longint_t var1, longint_t var2) {
+do_plus(longint_t *var1, longint_t var2) {
     longint_t result;
     int out;
     int carryover = 0;
-    for(int i = 0; i < INTSIZE; i++){
-        out = var1.num[i]+ var2.num[i];
+	int max = var1->length > var2.length ? var1->length : var2.length;
+	int i;
+	
+	
+	#if DEBUG
+	printf("doplus\n");
+		for (int i = 0; i <var1->length ;i++){
+			printf("%d",var1->num[i]);
+		}
+		printf("\n");
+		for (int i = 0; i <var2.length ;i++){
+			printf("%d",var2.num[i]);
+		}
+		printf("\n");
+	#endif
+
+    for(i = 0; i < max; i++){
+		if (i < var1->length && i < var2.length){
+			out = var1->num[i] + var2.num[i];
+		} else if (i < var1->length && i >= var2.length){
+			out = var1->num[i];
+		} else{
+			out = var2.num[i];
+		}
+        
+        
         if (carryover != 0){
             out += carryover;
             carryover = 0;
-
         }
         if (out >= 10){
             out -=10;
-            carryover += 1;
-
+            carryover = 1;
         }
+        //printf("out, carryover %d %d\n",out, carryover);
         result.num[i] = out;
 		result.length = i + 1;
     }
-    #if DEBUG
-    for(int i = result.length - 1; i >= 0 ;i--){
-        printf("%d\n",result.num[i]);
-    }
-    #endif
+	//printf("i: %d\n", i);
+    //printf("out, carryover %d %d\n",out, carryover);
+	if(carryover != 0){
+		result.num[i] = carryover;
+    	result.length = i + 1;
+	}
+
+	*var1 = result;
 }
 
 /*****************************************************************

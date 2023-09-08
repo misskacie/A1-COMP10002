@@ -108,7 +108,8 @@ void do_assign(longint_t *var1, longint_t *var2);
 void do_plus(longint_t *var1, longint_t var2);
 void zero_vars(longint_t vars[]);
 void reverse_array(longint_t *var);
-// int parse_num(char *rhs);
+int parse_num(char rhs);
+void do_multiplication(longint_t *var1, longint_t var2);
 
 
 
@@ -224,7 +225,6 @@ void
 process_line(longint_t vars[], char *line) {
 	int varnum, optype, status;
 	longint_t second_value;
-
 	/* determine the LHS variable, it
 	   must be first character in compacted line
 	*/
@@ -233,14 +233,12 @@ process_line(longint_t vars[], char *line) {
 		print_error("invalid LHS variable");
 		return;
 	}
-
 	/* more testing for validity 
 	*/
 	if (strlen(line)<2) {
 		print_error("no operator supplied");
 		return;
 	}
-
 	/* determine the operation to be performed, it
 	   must be second character of compacted line
 	*/
@@ -249,7 +247,6 @@ process_line(longint_t vars[], char *line) {
 		print_error("unknown operator\n");
 		return;
 	}
-
 	/* determine the RHS argument (if one is required),
 	   it must start in the third character of compacted line
 	*/
@@ -264,10 +261,11 @@ process_line(longint_t vars[], char *line) {
 			print_error("RHS argument is invalid");
 			return;
 		}
+		if (second_value.length > INTSIZE){
+			print_error("RHS number is greater than maximum intsize");
+			return;
+		}
 	}
-	// printf("->%d %d %d\n",vars[varnum].num[0], vars[varnum].num[1],vars[varnum].num[2]);
-	
-	// printf("->%d %d %d\n",vars[varnum].num[0], vars[varnum].num[1],vars[varnum].num[2]);
 	/* finally, do the actual operation
 	*/
 	if (optype == PRINT) {
@@ -312,16 +310,17 @@ get_second_value(longint_t vars[], char *rhsarg,
 	if (isdigit(*rhsarg)) {
 		/* first character is a digit, so RHS is a number
 		   now check the rest of RHS for validity */
-		second_value->num[0] = *rhsarg - CH_ZERO; 
+		second_value->num[0] = parse_num(*rhsarg); 
 		int i = 1;
 		for (p=rhsarg+1; *p; p++) {
 			if (!isdigit(*p)) {
 				/* nope, found an illegal character */
 				return ERROR;
 			} 
-			second_value->num[i] = *(rhsarg + i) - CH_ZERO;
+			second_value->num[i] = parse_num(*(rhsarg+i));
 			i++; 
 		}
+
 		second_value->length = i;
 		reverse_array(second_value);
 		return !ERROR;
@@ -350,26 +349,13 @@ zero_vars(longint_t vars[]) {
 	}
 }
 
-/*****************************************************************
-******************************************************************
 
-Your answer to the assignment should start here, using your new
-typedef defined at the top of the program. The next few functions
-will require modifications because of the change of structure
-used for a long_int, and then you'll need to start adding whole
-new functions after you get these first ones working properly.
-Try and make the new functions fit the style and naming pattern
-of the existing ones, ok?
-
-******************************************************************
-*****************************************************************/
-
-/* Create an internal-format number out of a string
+/* converter the character representation of num to an int
 */
-// int
-// parse_num(char *rhs) {
-// 	return atoi(rhs);
-// }
+int
+parse_num(char rhs) {
+	return (rhs - CH_ZERO);
+}
 
 /****************************************************************/
 
@@ -378,8 +364,13 @@ of the existing ones, ok?
 void
 do_print(int varnum, longint_t var) {
 	printf("register %c: ", varnum+CH_A);
-	for (int i = var.length - 1; i >= 0; i--){
+	int ref = var.length % 3;
+    ref = ref == 0 ? 3 : 0;
+    for (int i = var.length - 1; i >= 0; i--){
 		printf("%d", var.num[i]);
+        if (i != 0 && (ref + i) % 3 == 0){
+            printf(",");
+        }
 	}
 	printf("\n");
 }
@@ -409,7 +400,6 @@ do_plus(longint_t *var1, longint_t var2) {
     int carryover = 0;
 	int max = var1->length > var2.length ? var1->length : var2.length;
 	int i;
-	
 	
 	#if DEBUG
 	printf("doplus\n");
@@ -441,27 +431,50 @@ do_plus(longint_t *var1, longint_t var2) {
             out -=10;
             carryover = 1;
         }
-        //printf("out, carryover %d %d\n",out, carryover);
+
         result.num[i] = out;
 		result.length = i + 1;
     }
-	//printf("i: %d\n", i);
-    //printf("out, carryover %d %d\n",out, carryover);
+	// check addition does not yeild a number that is too big
+	if(var1->length == INTSIZE && var2.length == INTSIZE && carryover != 0){
+		print_error("calculated integer exceeds max intsize");
+		return;
+	}
 	if(carryover != 0){
 		result.num[i] = carryover;
     	result.length = i + 1;
 	}
-
 	*var1 = result;
 }
 
-/*****************************************************************
-******************************************************************
+/* multiply the two integer arrays together using the long
+	multiplication method
+	*/
+void
+do_multiplication(longint_t *var1, longint_t var2){
+	longint_t result;
+	int out;
+    int carryover = 0;
+	int max = var1->length > var2.length ? var1->length : var2.length;
+	int i, j;
+	
+	for(i=0; i<max; i++){
+		for(j=0; j<max;j++){
+			out = var1->num[i] * var2.num[j];
+			if (carryover != 0){
+            	out += carryover;
+            	carryover = 0;
+        	}
+        	while (out >= 10){
+            	out -=10;
+            	carryover += 1;
+        	}
+		}
+	}
 
-Put your new functions below this line. Make sure you add suitable
-prototypes at the top of the program.
 
-******************************************************************
-*****************************************************************/
+	*var1 = result;
+
+}
 
 

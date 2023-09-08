@@ -36,9 +36,9 @@ int main(int argv, char *argc[]){
     int nums[4][2] = {{1,2},{3,4},{5,6},{7,8}};
     int nums2[4][2] = {{1,1},{1,1},{1,1},{1,1}};
    // do_plus(3,nums[0],nums2[0]);
-    int n = atoi("1");
-    printf("%d",n);
 
+    int n = 0 % 3;
+    printf("%d",n);
 
 
 

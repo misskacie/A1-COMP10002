@@ -109,6 +109,7 @@ void zero_vars(longint_t vars[], int numvars);
 void reverse_array(longint_t *var);
 int parse_num(char rhs);
 void do_multiplication(longint_t *var1, longint_t var2);
+void do_exponentiation(longint_t *var1, longint_t var2);
 
 
 
@@ -275,6 +276,8 @@ process_line(longint_t vars[], char *line) {
 		do_plus(&vars[varnum], second_value);
 	} else if (optype == MULT){
 		do_multiplication(&vars[varnum], second_value);
+	} else if (optype == POWR){
+		do_exponentiation(&vars[varnum], second_value);
 	} else {
 		print_error("operation not available yet");
 		return;
@@ -443,7 +446,7 @@ do_plus(longint_t *var1, longint_t var2) {
 
 /* multiply the two integer arrays together using the long
 	multiplication method
-	*/
+*/
 void
 do_multiplication(longint_t *var1, longint_t var2){
 
@@ -471,25 +474,52 @@ do_multiplication(longint_t *var1, longint_t var2){
 				carryover += (out - (out % INT_TEN)) / INT_TEN;
 				out = out % INT_TEN;
 			}
-			printf("out: %d\n", out);
+			//printf("out: %d\n", out);
 			output[i].num[j+i] = out;	
         }
         output[i].length = max + i;    
     }
-	printf("carry: %d\n",carryover);
+	//printf("carry: %d\n",carryover);
 	if(carryover > 0){
 		output[i-1].num[j+i-1] = carryover;
 		output[i-1].length += 1;	
 	}
 
-	do_print(0,output[0]);
+	//do_print(0,output[0]);
     for(i=1; i<min; i++){
-		do_print(0,output[i]);
+		//do_print(0,output[i]);
         do_plus(&output[0], output[i]);
     }
 
     *var1 = output[0];
 }
 
+
+void
+do_exponentiation(longint_t *var1, longint_t var2){
+	int num = 0;
+	if (var2.length <= 4){
+		//convert var2 to int as it is small enough
+		for (int i = var2.length - 1; i >= 0; i--){
+			num = num * 10 + var2.num[i];
+		}
+		if (num > 1660){
+			print_error("Exponent too big");
+			return;
+		}
+	}
+	longint_t var1copy = *var1;
+	printf("num: %d\n",num);
+	for (int i = 1; i < num; i++){
+		do_multiplication(var1,var1copy);
+	}
+}
+
+void
+do_division(longint_t *var1, longint_t var2){
+
+
+
+}
 // Algorithms are fun!!!
 

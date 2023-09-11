@@ -126,6 +126,14 @@ int main(int argv, char *argc[]){;
     do_multiplication(&var1 ,var2);
     printf("%d %d %d %d\n",var1.num[0], var1.num[1],var1.num[2],var1.num[3]);
 
+    int a[]= {1,2,3};
+
+    int i, exponent = 0;
+	for (i = 0; i < var2.length; i++){
+		exponent = 10 * exponent +a[i];
+	}
+    printf("%d\n",exponent);
+
     // printf("%d %d %d\n",var.num[0], var.num[1],var.num[2]);
     // printf("%d %d %d\n",var2.num[0], var2.num[1],var2.num[2]);
 

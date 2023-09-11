@@ -36,8 +36,8 @@
    or not I personally make use of such solutions or sought benefit from such
    actions.
 
-   Signed by: [Enter your full name and student number here before submission]
-   Dated:     [Enter the date that you "signed" the declaration]
+   Signed by: Kacie Beckett 1452651
+   Dated:     9/9/2023
 
 */
 
@@ -94,8 +94,7 @@ typedef struct{
 /* A "magic" additional function needing explicit declaration */
 int fileno(FILE *);
 
-/* Skeleton program function prototypes */
-
+// Function prototypes 
 void print_prompt(void);
 void print_tadaa();
 void print_error(char *message);
@@ -106,7 +105,7 @@ int  to_varnum(char ident);
 void do_print(int varnum, longint_t var);
 void do_assign(longint_t *var1, longint_t *var2);
 void do_plus(longint_t *var1, longint_t var2);
-void zero_vars(longint_t vars[]);
+void zero_vars(longint_t vars[], int numvars);
 void reverse_array(longint_t *var);
 int parse_num(char rhs);
 void do_multiplication(longint_t *var1, longint_t var2);
@@ -121,7 +120,7 @@ int
 main(int argc, char *argv[]) {
 	char line[LINELEN+1] = {0};
 	longint_t vars[NVARS];
-	zero_vars(vars);
+	zero_vars(vars,NVARS);
 	print_prompt();
 	while (read_line(line, LINELEN)) {
 		if (strlen(line) > 0) {
@@ -274,7 +273,8 @@ process_line(longint_t vars[], char *line) {
 		do_assign(&vars[varnum], &second_value);
 	} else if (optype == PLUS) {
 		do_plus(&vars[varnum], second_value);
-	// you will need to add further operators here
+	} else if (optype == MULT){
+		do_multiplication(&vars[varnum], second_value);
 	} else {
 		print_error("operation not available yet");
 		return;
@@ -310,18 +310,24 @@ get_second_value(longint_t vars[], char *rhsarg,
 	if (isdigit(*rhsarg)) {
 		/* first character is a digit, so RHS is a number
 		   now check the rest of RHS for validity */
-		second_value->num[0] = parse_num(*rhsarg); 
-		int i = 1;
-		for (p=rhsarg+1; *p; p++) {
+
+		int i = 0, j = 0;
+		int flag = 0;
+		for (p=rhsarg; *p; p++) {
 			if (!isdigit(*p)) {
 				/* nope, found an illegal character */
 				return ERROR;
 			} 
-			second_value->num[i] = parse_num(*(rhsarg+i));
-			i++; 
+			second_value->num[j] = parse_num(*(rhsarg+i));
+			i++;
+			// remove leading zeros from the parsed integer
+			if (flag == 1 || second_value->num[j] != 0){
+				j++; 
+				flag = 1;
+			}
 		}
 
-		second_value->length = i;
+		second_value->length = j;
 		reverse_array(second_value);
 		return !ERROR;
 	} else {
@@ -341,8 +347,8 @@ get_second_value(longint_t vars[], char *rhsarg,
 /* Set the vars array to all zero values
 */
 void
-zero_vars(longint_t vars[]) {
-	for (int i=0; i<NVARS; i++) {
+zero_vars(longint_t vars[], int numvars) {
+	for (int i=0; i< numvars; i++) {
 		for (int j=0; j<INTSIZE; j++){
 			vars[i].num[j] = 0;
 		}
@@ -400,18 +406,6 @@ do_plus(longint_t *var1, longint_t var2) {
     int carryover = 0;
 	int max = var1->length > var2.length ? var1->length : var2.length;
 	int i;
-	
-	#if DEBUG
-	printf("doplus\n");
-		for (int i = 0; i <var1->length ;i++){
-			printf("%d",var1->num[i]);
-		}
-		printf("\n");
-		for (int i = 0; i <var2.length ;i++){
-			printf("%d",var2.num[i]);
-		}
-		printf("\n");
-	#endif
 
     for(i = 0; i < max; i++){
 		if (i < var1->length && i < var2.length){
@@ -452,29 +446,50 @@ do_plus(longint_t *var1, longint_t var2) {
 	*/
 void
 do_multiplication(longint_t *var1, longint_t var2){
-	longint_t result;
-	int out;
+
+    int out;
     int carryover = 0;
-	int max = var1->length > var2.length ? var1->length : var2.length;
-	int i, j;
-	
-	for(i=0; i<max; i++){
-		for(j=0; j<max;j++){
-			out = var1->num[i] * var2.num[j];
+    int max = var1->length > var2.length ? var1->length : var2.length;
+    int min = var1->length < var2.length ? var1->length : var2.length;
+    int i, j;
+    longint_t output[min];
+	zero_vars(output, min);
+
+    for(i=0; i<min; i++){
+        for(j=0; j<max;j++){
+			if (var1->length < var2.length){
+				out = var1->num[i] * var2.num[j];	
+			} else {
+				out = var1->num[j] * var2.num[i];
+			}
+			
 			if (carryover != 0){
-            	out += carryover;
-            	carryover = 0;
-        	}
-        	while (out >= 10){
-            	out -=10;
-            	carryover += 1;
-        	}
-		}
+				out += carryover;
+				carryover = 0;
+			}
+			if (out >= INT_TEN){
+				carryover += (out - (out % INT_TEN)) / INT_TEN;
+				out = out % INT_TEN;
+			}
+			printf("out: %d\n", out);
+			output[i].num[j+i] = out;	
+        }
+        output[i].length = max + i;    
+    }
+	printf("carry: %d\n",carryover);
+	if(carryover > 0){
+		output[i-1].num[j+i-1] = carryover;
+		output[i-1].length += 1;	
 	}
 
+	do_print(0,output[0]);
+    for(i=1; i<min; i++){
+		do_print(0,output[i]);
+        do_plus(&output[0], output[i]);
+    }
 
-	*var1 = result;
-
+    *var1 = output[0];
 }
 
+// Algorithms are fun!!!
 

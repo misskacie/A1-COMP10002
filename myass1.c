@@ -78,8 +78,6 @@
 #define INT_ZERO 0	/* integer 0 */
 #define INT_TEN  10	/* integer 10 */
 
-/* Placeholder typedef for skeleton code
-*/
 typedef struct{
 	int length;
 	int num[INTSIZE];
@@ -87,6 +85,10 @@ typedef struct{
 
 #define LONG_ZERO 0
 #define LONG_ONE  1
+
+#define VARSEQUAL 0
+#define VAR1GREATER 1
+#define VAR2GREATER 2
 
 
 /****************************************************************/
@@ -108,8 +110,10 @@ void do_plus(longint_t *var1, longint_t var2);
 void zero_vars(longint_t vars[], int numvars);
 void reverse_array(longint_t *var);
 int parse_num(char rhs);
+int is_greater_than(longint_t var1, longint_t var2);
 void do_multiplication(longint_t *var1, longint_t var2);
 void do_exponentiation(longint_t *var1, longint_t var2);
+void do_division(longint_t *dividend, longint_t divisor);
 
 
 
@@ -278,6 +282,8 @@ process_line(longint_t vars[], char *line) {
 		do_multiplication(&vars[varnum], second_value);
 	} else if (optype == POWR){
 		do_exponentiation(&vars[varnum], second_value);
+	} else if (optype == DIVS){
+		do_division(&vars[varnum], second_value);
 	} else {
 		print_error("operation not available yet");
 		return;
@@ -352,9 +358,8 @@ get_second_value(longint_t vars[], char *rhsarg,
 void
 zero_vars(longint_t vars[], int numvars) {
 	for (int i=0; i< numvars; i++) {
-		for (int j=0; j<INTSIZE; j++){
+		for(int j=0; j<INTSIZE;j++)
 			vars[i].num[j] = 0;
-		}
 	}
 }
 
@@ -373,12 +378,12 @@ parse_num(char rhs) {
 void
 do_print(int varnum, longint_t var) {
 	printf("register %c: ", varnum+CH_A);
-	int ref = var.length % 3;
-    ref = ref == 0 ? 3 : 0;
+	int ref = var.length % PUT_COMMAS;
+    ref = (ref == 0) ? PUT_COMMAS : 0;
     for (int i = var.length - 1; i >= 0; i--){
 		printf("%d", var.num[i]);
-        if (i != 0 && (ref + i) % 3 == 0){
-            printf(",");
+        if (i != 0 && (ref + i) % PUT_COMMAS == 0){
+            printf("%c",CH_COM);
         }
 	}
 	printf("\n");
@@ -431,11 +436,12 @@ do_plus(longint_t *var1, longint_t var2) {
 
         result.num[i] = out;
 		result.length = i + 1;
+		
     }
 	// check addition does not yeild a number that is too big
-	if(var1->length == INTSIZE && var2.length == INTSIZE && carryover != 0){
-		print_error("calculated integer exceeds max intsize");
-		return;
+	if((var1->length == INTSIZE || var2.length == INTSIZE) && carryover != 0){
+		print_error("integer overflow, program terminated");
+		exit(EXIT_FAILURE);
 	}
 	if(carryover != 0){
 		result.num[i] = carryover;
@@ -449,14 +455,22 @@ do_plus(longint_t *var1, longint_t var2) {
 */
 void
 do_multiplication(longint_t *var1, longint_t var2){
-
-    int out;
-    int carryover = 0;
     int max = var1->length > var2.length ? var1->length : var2.length;
     int min = var1->length < var2.length ? var1->length : var2.length;
-    int i, j;
+    int i, j, out, carryover = 0;
     longint_t output[min];
 	zero_vars(output, min);
+
+	if(var2.length == 0){
+		var1->length = 1;
+		var1->num[0] = 0;
+		return;
+	}
+
+	if (max + min - 1 > INTSIZE){
+		print_error("integer overflow, program terminated");
+		exit(EXIT_FAILURE);
+	}
 
     for(i=0; i<min; i++){
         for(j=0; j<max;j++){
@@ -465,25 +479,33 @@ do_multiplication(longint_t *var1, longint_t var2){
 			} else {
 				out = var1->num[j] * var2.num[i];
 			}
-			
 			if (carryover != 0){
 				out += carryover;
-				carryover = 0;
+				carryover=0;
 			}
+
 			if (out >= INT_TEN){
 				carryover += (out - (out % INT_TEN)) / INT_TEN;
 				out = out % INT_TEN;
 			}
+
 			//printf("out: %d\n", out);
 			output[i].num[j+i] = out;	
-        }
-        output[i].length = max + i;    
-    }
-	//printf("carry: %d\n",carryover);
-	if(carryover > 0){
-		output[i-1].num[j+i-1] = carryover;
-		output[i-1].length += 1;	
-	}
+			output[i].length = j + i + 1;
+			if (j == max - 1 && carryover != 0){
+				if (i== min - 1 && max + min - 1 == INTSIZE){
+					print_error("integer overflow, program terminated");
+					exit(EXIT_FAILURE);
+				}
+
+				//printf("i j : %d %d %d\n",i,j,carryover);
+				output[i].num[j+i+1] = carryover;
+				output[i].length += 1;
+				carryover = 0;
+			}	
+		}
+    }    
+
 
 	//do_print(0,output[0]);
     for(i=1; i<min; i++){
@@ -498,28 +520,117 @@ do_multiplication(longint_t *var1, longint_t var2){
 void
 do_exponentiation(longint_t *var1, longint_t var2){
 	int num = 0;
+	if(var2.length == 0){
+		var1->length = 1;
+		var1->num[0] = 0;
+		return;
+	}
 	if (var2.length <= 4){
 		//convert var2 to int as it is small enough
 		for (int i = var2.length - 1; i >= 0; i--){
 			num = num * 10 + var2.num[i];
 		}
 		if (num > 1660){
-			print_error("Exponent too big");
-			return;
+			print_error("integer overflow, program terminated");
+			exit(EXIT_FAILURE);
 		}
+	} else {
+		print_error("integer overflow, program terminated");
+		exit(EXIT_FAILURE);
 	}
-	longint_t var1copy = *var1;
-	printf("num: %d\n",num);
+
+	var2 = *var1;
+
+	//printf("num: %d\n",num);
 	for (int i = 1; i < num; i++){
-		do_multiplication(var1,var1copy);
+		do_multiplication(var1,var2);
+	}
+}
+/* return 1 if var1 > var2 else return 0
+*/
+int
+is_greater_than(longint_t var1, longint_t var2){
+	if (var1.length == var2.length){
+		for (int i = var1.length - 1 ; i >= 0; i--){
+			if (var1.num[i] == var2.num[i]){
+				continue;
+			} else if (var1.num[i] > var2.num[i]) {
+				return VAR1GREATER;
+			} else {
+				return VAR2GREATER;
+			}
+		}
+		return VARSEQUAL;
+	}
+	if (var1.length > var2.length){
+		return VAR1GREATER;
+	} else {
+		return VAR2GREATER;
 	}
 }
 
 void
-do_division(longint_t *var1, longint_t var2){
+do_subtraction(longint_t *var1, longint_t var2){
+	longint_t result = {.num = {0}, .length = 1};
+    int out;
+    int carryover = 0;
+	int i;
+	
+	if(!is_greater_than(*var1,var2)){
+		//print_error("Operation leads to negative integer");
+		exit(EXIT_FAILURE);
+	}
+    //printf("var length %d\n",var1->length);
+    for(i = 0; i < var1->length; i++){
+        if (var1->num[i] < var2.num[i]){
+			var1->num[i] += 10;
+			var1->num[i+1] -= 1;
+		}
+
+		if (i < var1->length && i < var2.length){
+			out = var1->num[i] - var2.num[i];
+		} else {
+			out = var1->num[i];
+		}
+        //printf("i: %d\n",i);
+        result.num[i] = out;
+		result.length = i + 1;
+    }
+    //remove leading zeros from the result
+    while(result.num[result.length - 1] == 0){
+        result.length -=1;
+    }
+	*var1 = result;
+}
+
+void
+do_division(longint_t *dividend, longint_t divisor){
+	// for long division the dividend must be greater than divisor
+	int status = is_greater_than(*dividend,divisor);
+	if (divisor.length == 1 && divisor.num[0] == 0){
+		print_error("Divide by zero error");
+		exit(EXIT_FAILURE);
+	}
+
+	if (status == VARSEQUAL){
+		dividend->length = 1;
+		dividend->num[0] = 1;
+	} else if (status == VAR2GREATER){
+		dividend->length = 1;
+		dividend->num[0] = 0;
+	} else {
+		longint_t quotient = {.num = {0}, .length = 1};
+		longint_t current = {.num = {0}, .length = 1};
+		int i, j, carryover = 0;
+
+		for (i = 0; i < dividend->length; i++){
+			status = is_greater_than(*dividend,divisor);
+
+		
+		}	
 
 
-
+}
 }
 // Algorithms are fun!!!
 

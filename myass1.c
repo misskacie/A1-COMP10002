@@ -86,7 +86,8 @@ typedef struct{
 #define LONG_ZERO 0
 #define LONG_ONE  1
 
-#define VARSEQUAL 0
+/* status return values for is_greater_than function */
+#define VARSEQUAL 0 
 #define VAR1GREATER 1
 #define VAR2GREATER 2
 
@@ -102,7 +103,8 @@ void print_tadaa();
 void print_error(char *message);
 int  read_line(char *line, int maxlen);
 void process_line(longint_t vars[], char *line);
-int  get_second_value(longint_t vars[], char *rhsarg, longint_t *second_value);
+int  get_second_value(longint_t vars[], char *rhsarg, 
+		longint_t *second_value);
 int  to_varnum(char ident);
 void do_print(int varnum, longint_t var);
 void do_assign(longint_t *var1, longint_t *var2);
@@ -114,7 +116,7 @@ int is_greater_than(longint_t var1, longint_t var2);
 void do_multiplication(longint_t *var1, longint_t var2);
 void do_exponentiation(longint_t *var1, longint_t var2);
 void do_division(longint_t *dividend, longint_t divisor);
-
+void debug_print(char message[], longint_t var);
 
 
 /****************************************************************/
@@ -389,6 +391,15 @@ do_print(int varnum, longint_t var) {
 	printf("\n");
 }
 
+void
+debug_print(char message[], longint_t var) {
+	printf("%s ", message);
+    for (int i = 0; i <var.length; i++){
+		printf("%d ", var.num[i]);
+	}
+	printf("\n");
+}
+
 /****************************************************************/
 
 /* Assign a longint value, could do this with just an assignment
@@ -575,14 +586,19 @@ do_subtraction(longint_t *var1, longint_t var2){
     int out;
     int carryover = 0;
 	int i;
-	
-	if(!is_greater_than(*var1,var2)){
-		//print_error("Operation leads to negative integer");
+	int status = is_greater_than(*var1,var2);
+
+	if(status == VAR2GREATER){
+		print_error("Operation leads to negative integer");
 		exit(EXIT_FAILURE);
+	} else if (status == VARSEQUAL){
+		*var1 = result;
+		return;
 	}
+
     //printf("var length %d\n",var1->length);
-    for(i = 0; i < var1->length; i++){
-        if (var1->num[i] < var2.num[i]){
+    for(i = 0; i < var1->length ; i++){
+        if (var1->num[i] < var2.num[i] && i < var2.length){
 			var1->num[i] += 10;
 			var1->num[i+1] -= 1;
 		}
@@ -597,14 +613,31 @@ do_subtraction(longint_t *var1, longint_t var2){
 		result.length = i + 1;
     }
     //remove leading zeros from the result
-    while(result.num[result.length - 1] == 0){
+    while(result.length > 1 && result.num[result.length - 1] == 0){
         result.length -=1;
     }
+	
 	*var1 = result;
+}
+
+void shiftup(longint_t *var1){
+	
+	for (int i = var1->length; i > 0 ; i--){
+		var1->num[i]  = var1->num[i-1];
+	}
+	var1->length += 1;
+}
+
+void pop(longint_t *var1){
+	if (var1->length >1){
+		var1->length -=1;
+	}
 }
 
 void
 do_division(longint_t *dividend, longint_t divisor){
+	
+	// long division is performed from the start of the number unlike other operations.
 	// for long division the dividend must be greater than divisor
 	int status = is_greater_than(*dividend,divisor);
 	if (divisor.length == 1 && divisor.num[0] == 0){
@@ -615,20 +648,77 @@ do_division(longint_t *dividend, longint_t divisor){
 	if (status == VARSEQUAL){
 		dividend->length = 1;
 		dividend->num[0] = 1;
+		return;
 	} else if (status == VAR2GREATER){
 		dividend->length = 1;
 		dividend->num[0] = 0;
+		return;
 	} else {
-		longint_t quotient = {.num = {0}, .length = 1};
+		longint_t quotient = {.num = {0}, .length = 0};
 		longint_t current = {.num = {0}, .length = 1};
-		int i, j, carryover = 0;
+		int i, j, carryover = 0, cindex = 0;
+		int start = 0, stop = 0;
 
-		for (i = 0; i < dividend->length; i++){
-			status = is_greater_than(*dividend,divisor);
+		for (i = dividend->length - 1; i >= 0; i--){
+			current.num[0] = dividend->num[i];
+			
+			//debug_print("current",current);
+			//debug_print("divisor",divisor);
 
-		
+			printf("\n");
+			int count= 0;
+			status = is_greater_than(current,divisor);
+
+			if (status == VARSEQUAL){
+				quotient.num[cindex] = 1;
+				quotient.length++;
+				cindex++;
+				pop(&current);
+
+			} else if (status == VAR1GREATER){
+				
+				status = is_greater_than(current,divisor);
+				while(status != VAR2GREATER){
+					do_subtraction(&current,divisor);
+					//printf("\n");
+					count += 1;
+					status = is_greater_than(current,divisor);
+					//debug_print("current",current);
+					//debug_print("quotient",quotient);
+				}
+				
+				//printf("boop2 %d\n",count);
+				quotient.num[cindex] = count;
+				cindex++;
+				quotient.length++;
+				count = 0;
+				if(current.num[0] != 0 || current.length > 1){
+					shiftup(&current);
+				}
+				
+
+			} else {
+				// printf("shiftup\n");
+				if(count == 0 &&(current.num[0] == 0 || current.length == 1)){
+					quotient.num[cindex] = 0;
+					quotient.length++;
+					cindex++;
+					//debug_print("quotient",quotient);
+				}
+				shiftup(&current);
+				
+				
+			}
+			
+			
+			
 		}	
-
+	reverse_array(&quotient);
+	//remove leading zeros from the result
+    while(quotient.length > 1 && quotient.num[quotient.length - 1] == 0){
+        quotient.length -=1;
+    }
+	*dividend = quotient;
 
 }
 }

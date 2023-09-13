@@ -661,9 +661,9 @@ do_division(longint_t *dividend, longint_t divisor){
 
 		for (i = dividend->length - 1; i >= 0; i--){
 			current.num[0] = dividend->num[i];
-			
-			//debug_print("current",current);
-			//debug_print("divisor",divisor);
+			debug_print("squotient",quotient);
+			debug_print("zcurrent",current);
+			debug_print("zdivisor",divisor);
 
 			printf("\n");
 			int count= 0;
@@ -680,38 +680,37 @@ do_division(longint_t *dividend, longint_t divisor){
 				status = is_greater_than(current,divisor);
 				while(status != VAR2GREATER){
 					do_subtraction(&current,divisor);
-					//printf("\n");
+					printf("\n");
 					count += 1;
 					status = is_greater_than(current,divisor);
-					//debug_print("current",current);
-					//debug_print("quotient",quotient);
+					debug_print("current",current);
+					debug_print("quotient",quotient);
 				}
 				
-				//printf("boop2 %d\n",count);
+				printf("boop2 %d\n",count);
 				quotient.num[cindex] = count;
 				cindex++;
 				quotient.length++;
 				count = 0;
 				if(current.num[0] != 0 || current.length > 1){
+					printf("shiftup boop %d\n",count);
 					shiftup(&current);
 				}
 				
 
 			} else {
-				// printf("shiftup\n");
-				if(count == 0 &&(current.num[0] == 0 || current.length == 1)){
-					quotient.num[cindex] = 0;
-					quotient.length++;
-					cindex++;
-					//debug_print("quotient",quotient);
+				printf("shiftup count %d\n",count);
+			
+				quotient.num[cindex] = 0;
+				quotient.length++;
+				cindex++;
+				//debug_print("quotient",quotient);
+				
+				if(current.num[current.length -1] != 0){
+					shiftup(&current);
 				}
-				shiftup(&current);
 				
-				
-			}
-			
-			
-			
+			}			
 		}	
 	reverse_array(&quotient);
 	//remove leading zeros from the result

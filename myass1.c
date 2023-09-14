@@ -78,18 +78,22 @@
 #define INT_ZERO 0	/* integer 0 */
 #define INT_TEN  10	/* integer 10 */
 
-typedef struct{
-	int length;
-	int num[INTSIZE];
-} longint_t;	
 
 #define LONG_ZERO 0
 #define LONG_ONE  1
+
+/* largest exponent that can arise within 500 digit numbers is 2^1660 */
+#define MAX_EXPONENT 1660 
 
 /* status return values for is_greater_than function */
 #define VARSEQUAL 0 
 #define VAR1GREATER 1
 #define VAR2GREATER 2
+
+typedef struct{
+	int length;
+	int num[INTSIZE];
+} longint_t;
 
 
 /****************************************************************/
@@ -98,27 +102,28 @@ typedef struct{
 int fileno(FILE *);
 
 // Function prototypes 
-void print_prompt(void);
-void print_tadaa();
-void print_error(char *message);
 int  read_line(char *line, int maxlen);
 void process_line(longint_t vars[], char *line);
 int  get_second_value(longint_t vars[], char *rhsarg, 
 		longint_t *second_value);
-int  to_varnum(char ident);
-void do_print(int varnum, longint_t var);
-void do_assign(longint_t *var1, longint_t *var2);
-void do_plus(longint_t *var1, longint_t var2);
 void zero_vars(longint_t vars[], int numvars);
-void reverse_array(longint_t *var);
 int parse_num(char rhs);
-int is_greater_than(longint_t var1, longint_t var2);
-void do_multiplication(longint_t *var1, longint_t var2);
-void do_exponentiation(longint_t *var1, longint_t var2);
-void do_division(longint_t *dividend, longint_t divisor);
-void debug_print(char message[], longint_t var);
-
-
+int  to_varnum(char ident);
+void do_assign(longint_t *var1, longint_t *var2);
+void reverse_longint(longint_t *var);
+void print_prompt(void);
+void print_tadaa();
+void print_error(char *message);
+void do_print(int varnum, longint_t *var);
+void debug_print(char message[], longint_t *var);
+void do_plus(longint_t *var1, longint_t *var2);
+void do_multiplication(longint_t *var1, longint_t *var2);
+void do_exponentiation(longint_t *var1, longint_t *var2);
+int is_greater_than(longint_t *var1, longint_t *var2);
+void do_subtraction(longint_t *var1, longint_t *var2);
+void shiftup(longint_t *var1);
+void pop(longint_t *var1);
+void do_division(longint_t *dividend, longint_t *divisor);
 /****************************************************************/
 
 /* Main program controls all the action
@@ -142,50 +147,6 @@ main(int argc, char *argv[]) {
 }
 
 /****************************************************************/
-
-/* Prints the prompt indicating ready for input, but only if it
-   can be confirmed that the input is coming from a terminal.
-   Plus, output might be going to a file, that's why the prompt,
-   if required, is written to stderr and not stdout
-*/
-void
-print_prompt(void) {
-	if (isatty(fileno(stdin))) {
-		fprintf(stderr, "> ");
-		fflush(stderr);
-	}
-}
-
-void
-print_tadaa() {
-	/* all done, so pack up bat and ball and head home,
-	   getting the exact final lines right is a bit tedious,
-	   because input might be coming from a file and output
-	   might be going to a file */
-	if (isatty(fileno(stdin)) && isatty(fileno(stdout))) {
-		printf("\n");
-	}
-	printf("ta daa!!!\n");
-	if (isatty(fileno(stdin)) && !isatty(fileno(stdout))) {
-		fprintf(stderr, "\n");
-	}
-}
-
-void
-print_error(char *message) {
-	/* need to write an error message to the right place(s)
-	*/
-	if (isatty(fileno(stdin)) || isatty(fileno(stdout))) {
-		fprintf(stderr, "%s\n", message);
-		fflush(stderr);
-	}
-	if (!isatty(fileno(stdout))) {
-		printf("%s\n", message);
-	}
-}
-
-/****************************************************************/
-
 /* Reads a line of input into the array passed as argument,
    returns false if there is no input available.
    All whitespace characters are removed on the way through.
@@ -207,23 +168,7 @@ read_line(char *line, int maxlen) {
 	}
 	return ((i>0) || (c!=EOF));
 }
-/****************************************************************/
 
-/* Reverse an array
-*/
-void 
-reverse_array(longint_t *var){
-	longint_t tmp;
-	tmp = *var;
-	int i = 0;
-	for (int j = var->length - 1; j >= 0; j--){
-		var->num[i] = tmp.num[j];
-		i++;
-	}
-	return;
-}
-
-/****************************************************************/
 
 /* Process a command by parsing the input line into parts
 */
@@ -275,40 +220,23 @@ process_line(longint_t vars[], char *line) {
 	/* finally, do the actual operation
 	*/
 	if (optype == PRINT) {
-		do_print(varnum, vars[varnum]);
+		do_print(varnum, &vars[varnum]);
 	} else if (optype == ASSIGN) {
 		do_assign(&vars[varnum], &second_value);
 	} else if (optype == PLUS) {
-		do_plus(&vars[varnum], second_value);
+		do_plus(&vars[varnum], &second_value);
 	} else if (optype == MULT){
-		do_multiplication(&vars[varnum], second_value);
+		do_multiplication(&vars[varnum], &second_value);
 	} else if (optype == POWR){
-		do_exponentiation(&vars[varnum], second_value);
+		do_exponentiation(&vars[varnum], &second_value);
 	} else if (optype == DIVS){
-		do_division(&vars[varnum], second_value);
+		do_division(&vars[varnum], &second_value);
 	} else {
 		print_error("operation not available yet");
 		return;
 	}
 	return;
 }
-
-/****************************************************************/
-
-/* Convert a character variable identifier to a variable number
-*/
-int
-to_varnum(char ident) {
-	int varnum;
-	varnum = ident - CH_A;
-	if (0<=varnum && varnum<NVARS) {
-		return varnum;
-	} else {
-		return ERROR;
-	}
-}
-
-/****************************************************************/
 
 /* Process the input line to extract the RHS argument, which
    should start at the pointer that is passed
@@ -339,7 +267,7 @@ get_second_value(longint_t vars[], char *rhsarg,
 		}
 
 		second_value->length = j;
-		reverse_array(second_value);
+		reverse_longint(second_value);
 		return !ERROR;
 	} else {
 		/* argument is not a number, so should be a variable */
@@ -355,16 +283,18 @@ get_second_value(longint_t vars[], char *rhsarg,
 	return ERROR;
 }
 
-/* Set the vars array to all zero values
+/* Set an array of long int of length numvars to have the array
+	inside each struct have all indexes set to zero
 */
 void
 zero_vars(longint_t vars[], int numvars) {
+	// traverse to each struct
 	for (int i=0; i< numvars; i++) {
+		// traverse to each element in the array in the struct
 		for(int j=0; j<INTSIZE;j++)
 			vars[i].num[j] = 0;
 	}
 }
-
 
 /* converter the character representation of num to an int
 */
@@ -373,34 +303,18 @@ parse_num(char rhs) {
 	return (rhs - CH_ZERO);
 }
 
-/****************************************************************/
-
-/* Print out a longint value
+/* Convert a character variable identifier to a variable number
 */
-void
-do_print(int varnum, longint_t var) {
-	printf("register %c: ", varnum+CH_A);
-	int ref = var.length % PUT_COMMAS;
-    ref = (ref == 0) ? PUT_COMMAS : 0;
-    for (int i = var.length - 1; i >= 0; i--){
-		printf("%d", var.num[i]);
-        if (i != 0 && (ref + i) % PUT_COMMAS == 0){
-            printf("%c",CH_COM);
-        }
+int
+to_varnum(char ident) {
+	int varnum;
+	varnum = ident - CH_A;
+	if (0<=varnum && varnum<NVARS) {
+		return varnum;
+	} else {
+		return ERROR;
 	}
-	printf("\n");
 }
-
-void
-debug_print(char message[], longint_t var) {
-	printf("%s ", message);
-    for (int i = 0; i <var.length; i++){
-		printf("%d ", var.num[i]);
-	}
-	printf("\n");
-}
-
-/****************************************************************/
 
 /* Assign a longint value, could do this with just an assignment
    statement, because structs can be assigned, but this is more
@@ -410,8 +324,100 @@ debug_print(char message[], longint_t var) {
 */
 void
 do_assign(longint_t *var1, longint_t *var2) {
-	*var1 = *var2;
+	var1->length = var2->length;
+	for (int i = 0; i < var2->length; i++){
+		var1->num[i]= var2->num[i];
+	}
 }
+
+/* Reverse the array inside longint_t
+*/
+void 
+reverse_longint(longint_t *var){
+	longint_t tmp;
+	tmp = *var;
+	int i = 0;
+	for (int j = var->length - 1; j >= 0; j--){
+		var->num[i] = tmp.num[j];
+		i++;
+	}
+}
+
+
+/****************************************************************/
+
+/* Prints the prompt indicating ready for input, but only if it
+   can be confirmed that the input is coming from a terminal.
+   Plus, output might be going to a file, that's why the prompt,
+   if required, is written to stderr and not stdout
+*/
+void
+print_prompt(void) {
+	if (isatty(fileno(stdin))) {
+		fprintf(stderr, "> ");
+		fflush(stderr);
+	}
+}
+
+void
+print_tadaa() {
+	/* all done, so pack up bat and ball and head home,
+	   getting the exact final lines right is a bit tedious,
+	   because input might be coming from a file and output
+	   might be going to a file */
+	if (isatty(fileno(stdin)) && isatty(fileno(stdout))) {
+		printf("\n");
+	}
+	printf("ta daa!!!\n");
+	if (isatty(fileno(stdin)) && !isatty(fileno(stdout))) {
+		fprintf(stderr, "\n");
+	}
+}
+
+void
+print_error(char *message) {
+	/* need to write an error message to the right place(s)
+	*/
+	if (isatty(fileno(stdin)) || isatty(fileno(stdout))) {
+		fprintf(stderr, "%s\n", message);
+		fflush(stderr);
+	}
+	if (!isatty(fileno(stdout))) {
+		printf("%s\n", message);
+	}
+}
+
+/* Print out a longint value with a comma every third value from the end
+	eg. 123,456,789
+*/
+void
+do_print(int varnum, longint_t *var) {
+	printf("register %c: ", varnum+CH_A);
+	int ref = var->length % PUT_COMMAS;
+    ref = (ref == 0) ? PUT_COMMAS : 0;
+	// number is stored in reverse order so iterate from end of array
+    for (int i = var->length - 1; i >= 0; i--){
+		printf("%d", var->num[i]);
+        if (i != 0 && (ref + i) % PUT_COMMAS == 0){
+            printf("%c",CH_COM);
+        }
+	}
+	printf("\n");
+}
+
+/* function used for debugging by printing out a message and each 
+	element in a longint array in the forward order as opposed
+	to do_print which reverses the direction.
+*/
+void
+debug_print(char message[], longint_t *var) {
+	printf("%s ", message);
+    for (int i = 0; i < var->length; i++){
+		printf("%d ", var->num[i]);
+	}
+	printf("\n");
+}
+
 
 /****************************************************************/
 
@@ -419,20 +425,20 @@ do_assign(longint_t *var1, longint_t *var2) {
    using var2 to compute var1 = var1 + var2
 */
 void
-do_plus(longint_t *var1, longint_t var2) {
+do_plus(longint_t *var1, longint_t *var2) {
     longint_t result;
     int out;
     int carryover = 0;
-	int max = var1->length > var2.length ? var1->length : var2.length;
+	int max = var1->length > var2->length ? var1->length : var2->length;
 	int i;
 
     for(i = 0; i < max; i++){
-		if (i < var1->length && i < var2.length){
-			out = var1->num[i] + var2.num[i];
-		} else if (i < var1->length && i >= var2.length){
+		if (i < var1->length && i < var2->length){
+			out = var1->num[i] + var2->num[i];
+		} else if (i < var1->length && i >= var2->length){
 			out = var1->num[i];
 		} else{
-			out = var2.num[i];
+			out = var2->num[i];
 		}
         
         
@@ -450,7 +456,7 @@ do_plus(longint_t *var1, longint_t var2) {
 		
     }
 	// check addition does not yeild a number that is too big
-	if((var1->length == INTSIZE || var2.length == INTSIZE) && carryover != 0){
+	if((var1->length == INTSIZE || var2->length == INTSIZE) && carryover != 0){
 		print_error("integer overflow, program terminated");
 		exit(EXIT_FAILURE);
 	}
@@ -458,21 +464,23 @@ do_plus(longint_t *var1, longint_t var2) {
 		result.num[i] = carryover;
     	result.length = i + 1;
 	}
-	*var1 = result;
+
+	do_assign(var1,&result);
 }
 
+/****************************************************************/
 /* multiply the two integer arrays together using the long
 	multiplication method
 */
 void
-do_multiplication(longint_t *var1, longint_t var2){
-    int max = var1->length > var2.length ? var1->length : var2.length;
-    int min = var1->length < var2.length ? var1->length : var2.length;
+do_multiplication(longint_t *var1, longint_t *var2){
+    int max = var1->length > var2->length ? var1->length : var2->length;
+    int min = var1->length < var2->length ? var1->length : var2->length;
     int i, j, out, carryover = 0;
     longint_t output[min];
 	zero_vars(output, min);
 
-	if(var2.length == 0){
+	if(var2->length == 0){
 		var1->length = 1;
 		var1->num[0] = 0;
 		return;
@@ -485,10 +493,10 @@ do_multiplication(longint_t *var1, longint_t var2){
 
     for(i=0; i<min; i++){
         for(j=0; j<max;j++){
-			if (var1->length < var2.length){
-				out = var1->num[i] * var2.num[j];	
+			if (var1->length < var2->length){
+				out = var1->num[i] * var2->num[j];	
 			} else {
-				out = var1->num[j] * var2.num[i];
+				out = var1->num[j] * var2->num[i];
 			}
 			if (carryover != 0){
 				out += carryover;
@@ -517,31 +525,32 @@ do_multiplication(longint_t *var1, longint_t var2){
 		}
     }    
 
-
 	//do_print(0,output[0]);
     for(i=1; i<min; i++){
 		//do_print(0,output[i]);
-        do_plus(&output[0], output[i]);
+        do_plus(&output[0], &output[i]);
     }
 
-    *var1 = output[0];
+	do_assign(var1, &output[0]);
 }
 
-
+/****************************************************************/
 void
-do_exponentiation(longint_t *var1, longint_t var2){
+do_exponentiation(longint_t *var1, longint_t *var2){
 	int num = 0;
-	if(var2.length == 0){
+	if(var2->length == 0){
 		var1->length = 1;
 		var1->num[0] = 0;
 		return;
 	}
-	if (var2.length <= 4){
+	// largest possible exponent for 500 digits is 4 digits long
+	if (var2->length <= 4){
+
 		//convert var2 to int as it is small enough
-		for (int i = var2.length - 1; i >= 0; i--){
-			num = num * 10 + var2.num[i];
+		for (int i = var2->length - 1; i >= 0; i--){
+			num = num * 10 + var2->num[i];
 		}
-		if (num > 1660){
+		if (num > MAX_EXPONENT){
 			print_error("integer overflow, program terminated");
 			exit(EXIT_FAILURE);
 		}
@@ -549,44 +558,50 @@ do_exponentiation(longint_t *var1, longint_t var2){
 		print_error("integer overflow, program terminated");
 		exit(EXIT_FAILURE);
 	}
-
-	var2 = *var1;
+	do_assign(var2,var1);
 
 	//printf("num: %d\n",num);
 	for (int i = 1; i < num; i++){
 		do_multiplication(var1,var2);
 	}
 }
+
+/****************************************************************/
+
 /* return 1 if var1 > var2 else return 0
 */
 int
-is_greater_than(longint_t var1, longint_t var2){
-	if (var1.length == var2.length){
-		for (int i = var1.length - 1 ; i >= 0; i--){
-			if (var1.num[i] == var2.num[i]){
+is_greater_than(longint_t *var1, longint_t *var2){
+	// quick check for differing lengths as it is faster
+	if (var1->length > var2->length){
+		return VAR1GREATER;
+	} else if (var1->length < var2->length) {
+		return VAR2GREATER;
+	} else {
+		// check numbers at individual indexes until 
+		// one is smaller and use that to determine which is greater
+		for (int i = var1->length - 1 ; i >= 0; i--){
+			if (var1->num[i] == var2->num[i]){
 				continue;
-			} else if (var1.num[i] > var2.num[i]) {
+			} else if (var1->num[i] > var2->num[i]) {
 				return VAR1GREATER;
 			} else {
 				return VAR2GREATER;
 			}
 		}
+		// every digit checked was equal so vars are equal
 		return VARSEQUAL;
-	}
-	if (var1.length > var2.length){
-		return VAR1GREATER;
-	} else {
-		return VAR2GREATER;
 	}
 }
 
+
 void
-do_subtraction(longint_t *var1, longint_t var2){
+do_subtraction(longint_t *var1, longint_t *var2){
 	longint_t result = {.num = {0}, .length = 1};
     int out;
     int carryover = 0;
 	int i;
-	int status = is_greater_than(*var1,var2);
+	int status = is_greater_than(var1,var2);
 
 	if(status == VAR2GREATER){
 		print_error("Operation leads to negative integer");
@@ -598,13 +613,13 @@ do_subtraction(longint_t *var1, longint_t var2){
 
     //printf("var length %d\n",var1->length);
     for(i = 0; i < var1->length ; i++){
-        if (var1->num[i] < var2.num[i] && i < var2.length){
+        if (var1->num[i] < var2->num[i] && i < var2->length){
 			var1->num[i] += 10;
 			var1->num[i+1] -= 1;
 		}
 
-		if (i < var1->length && i < var2.length){
-			out = var1->num[i] - var2.num[i];
+		if (i < var1->length && i < var2->length){
+			out = var1->num[i] - var2->num[i];
 		} else {
 			out = var1->num[i];
 		}
@@ -616,18 +631,21 @@ do_subtraction(longint_t *var1, longint_t var2){
     while(result.length > 1 && result.num[result.length - 1] == 0){
         result.length -=1;
     }
-	
-	*var1 = result;
+	do_assign(var1,&result);
+
 }
+/* shifts each number in longint_t num array up by one index 
+	leaving the number in index 0 untouched
+*/ 
 
 void shiftup(longint_t *var1){
-	
 	for (int i = var1->length; i > 0 ; i--){
 		var1->num[i]  = var1->num[i-1];
 	}
 	var1->length += 1;
 }
 
+// used to remove the end element of longint_t num array
 void pop(longint_t *var1){
 	if (var1->length >1){
 		var1->length -=1;
@@ -635,39 +653,41 @@ void pop(longint_t *var1){
 }
 
 void
-do_division(longint_t *dividend, longint_t divisor){
-	
-	// long division is performed from the start of the number unlike other operations.
-	// for long division the dividend must be greater than divisor
-	int status = is_greater_than(*dividend,divisor);
-	if (divisor.length == 1 && divisor.num[0] == 0){
+do_division(longint_t *dividend, longint_t *divisor){
+	// check divisor is non-zero
+	if (divisor->length == 1 && divisor->num[0] == 0){
 		print_error("Divide by zero error");
 		exit(EXIT_FAILURE);
 	}
 
+	// long division is performed from the start of the number unlike other operations.
+	// for long division the dividend must be greater than divisor
+	int status = is_greater_than(dividend,divisor);
+
 	if (status == VARSEQUAL){
+		// avoid unnecessary computation, answer is 1
 		dividend->length = 1;
 		dividend->num[0] = 1;
 		return;
 	} else if (status == VAR2GREATER){
+		// avoid unnecessary computation, answer is 0
 		dividend->length = 1;
 		dividend->num[0] = 0;
 		return;
 	} else {
+		// perform long division as dividend > divisor
 		longint_t quotient = {.num = {0}, .length = 0};
 		longint_t current = {.num = {0}, .length = 1};
-		int i, j, carryover = 0, cindex = 0;
-		int start = 0, stop = 0;
+		int count = 0, cindex = 0;
 
-		for (i = dividend->length - 1; i >= 0; i--){
+		for (int i = dividend->length - 1; i >= 0; i--){
 			current.num[0] = dividend->num[i];
-			debug_print("squotient",quotient);
-			debug_print("zcurrent",current);
-			debug_print("zdivisor",divisor);
+			//debug_print("top quotient",quotient);
+			//debug_print("top current",current);
+			//debug_print("top divisor",divisor);
 
-			printf("\n");
-			int count= 0;
-			status = is_greater_than(current,divisor);
+			count = 0;
+			status = is_greater_than(&current,divisor);
 
 			if (status == VARSEQUAL){
 				quotient.num[cindex] = 1;
@@ -676,31 +696,22 @@ do_division(longint_t *dividend, longint_t divisor){
 				pop(&current);
 
 			} else if (status == VAR1GREATER){
-				
-				status = is_greater_than(current,divisor);
+				status = is_greater_than(&current,divisor);
 				while(status != VAR2GREATER){
 					do_subtraction(&current,divisor);
-					printf("\n");
 					count += 1;
-					status = is_greater_than(current,divisor);
-					debug_print("current",current);
-					debug_print("quotient",quotient);
+					status = is_greater_than(&current,divisor);
+					//debug_print("current",current);
+					//debug_print("quotient",quotient);
 				}
-				
-				printf("boop2 %d\n",count);
 				quotient.num[cindex] = count;
 				cindex++;
 				quotient.length++;
 				count = 0;
 				if(current.num[0] != 0 || current.length > 1){
-					printf("shiftup boop %d\n",count);
 					shiftup(&current);
 				}
-				
-
 			} else {
-				printf("shiftup count %d\n",count);
-			
 				quotient.num[cindex] = 0;
 				quotient.length++;
 				cindex++;
@@ -709,15 +720,16 @@ do_division(longint_t *dividend, longint_t divisor){
 				if(current.num[current.length -1] != 0){
 					shiftup(&current);
 				}
-				
 			}			
 		}	
-	reverse_array(&quotient);
+	// quotient was stored with start at index 0 of array which means 
+	// it needs to be reversed to match the way the datatype is stored
+	reverse_longint(&quotient);
 	//remove leading zeros from the result
     while(quotient.length > 1 && quotient.num[quotient.length - 1] == 0){
         quotient.length -=1;
     }
-	*dividend = quotient;
+	do_assign(dividend,&quotient);
 
 }
 }

@@ -117,9 +117,8 @@ void print_prompt(void);
 void print_tadaa();
 void print_error(char *message);
 void do_print(int varnum, longint_t *var);
-#if DEBUG
 void debug_print(char message[], longint_t *var);
-#endif
+void error_and_exit(char message[]);
 void do_plus(longint_t *var1, longint_t *var2);
 void do_multiplication(longint_t *var1, longint_t *var2);
 void do_exponentiation(longint_t *var1, longint_t *var2);
@@ -431,7 +430,6 @@ do_print(int varnum, longint_t *var) {
 	printf("\n");
 }
 
-#if DEBUG
 /* function used for debugging by printing out a message and each 
 	element in a longint array in the forward order as opposed
 	to do_print which reverses the direction.
@@ -444,10 +442,10 @@ debug_print(char message[], longint_t *var) {
 	}
 	printf("\n");
 }
-#endif
 
+/* prints a message and then exits the program */
 void
-error_exit(char message[]){
+error_and_exit(char message[]){
 	print_error(message);
 	exit(EXIT_FAILURE);
 }
@@ -479,6 +477,8 @@ do_plus(longint_t *var1, longint_t *var2) {
             out += carryover;
             carryover = 0;
         }
+		/* carryover needs to be added to the next place so take the first 
+			   digit of 2 digit number*/
         if (out >= 10){
             out -=10;
             carryover = 1;
@@ -490,7 +490,7 @@ do_plus(longint_t *var1, longint_t *var2) {
     }
 	// check addition does not yeild a number that is too big
 	if((var1->length == INTSIZE || var2->length == INTSIZE) && carryover != 0){
-		error_exit("integer overflow, program terminated");
+		error_and_exit("integer overflow, program terminated");
 	}
 	if(carryover != 0){
 		result.num[i] = carryover;
@@ -523,30 +523,33 @@ do_multiplication(longint_t *var1, longint_t *var2){
 	/* The algorithm will generate an array of longint_t values based on the 
        number of digits in the shorter number (int min). The first digit 
        multiplied in the first array has no offset. Then each following digit 
-       has an increasing offset to be the equivalent as multiplying by ten. 
-       Then each array is added to get the final value.
+       has an increasing offset to be the equivalent to multiplying by ten. 
 	*/
 
 	/* primatively check the operation will not make number > intsize */
 	if (max + (min - 1) > INTSIZE){
-		error_exit("integer overflow, program terminated");
+		error_and_exit("integer overflow, program terminated");
 	}
 
     for(i = 0; i < min; i++){
         for(j = 0; j < max; j++){
+			/* Choose order to multiply in with longer number "ontop" */
 			if (var1->length < var2->length){
 				out = var1->num[i] * var2->num[j];	
 			} else {
-				out = var1->num[j] * var2->num[i];
-			}
-			if (carryover != 0){
-				out += carryover;
-				carryover=0;
+				out = var2->num[i] * var1->num[j];
 			}
 
-			if (out >= INT_TEN){
-				carryover += (out - (out % INT_TEN)) / INT_TEN;
-				out = out % INT_TEN;
+			/* add the carryover value to the next place and then reset it */
+			if (carryover != 0){
+				out += carryover;
+				carryover = 0;
+			}
+			/* carryover needs to be added to the next place so take the first 
+			   digit of 2 digit number*/
+			if (out >= 10){
+				carryover += (out - (out % 10)) / 10;
+				out = out % 10;
 			}
 
 			//printf("out: %d\n", out);
@@ -554,13 +557,13 @@ do_multiplication(longint_t *var1, longint_t *var2){
 			output[i].length = j + i + 1;
 			if (j == max - 1 && carryover != 0){
 				/* because the carryover is non zero the final number will be 1 
-                   bigger than INTSIZE so we can determine more specfically 
-                   that there will an overflow */
+                   bigger than INTSIZE so we can determine there will an overflow 
+				*/
 				if ((i == min - 1) && (max + min - 1 == INTSIZE)){
 					print_error("integer overflow, program terminated");
 					exit(EXIT_FAILURE);
 				}
-
+				/* add the final carryover to the output as it won't overflow */
 				output[i].num[j+i+1] = carryover;
 				output[i].length += 1;
 				carryover = 0;
@@ -580,11 +583,20 @@ do_multiplication(longint_t *var1, longint_t *var2){
 void
 do_exponentiation(longint_t *var1, longint_t *var2){
 	int num = 0;
-	if(var2->num[0] == 0 && var2->length == 1){
+	/* if the var1 is 0, set var1 to 0*/
+	if((var1->num[0] == 0 && var1->length == 1)){
+		var1->length = 1;
+		var1->num[0] = 0;
+		return;
+	   }
+	/* if the var1 is 1 or var 2 is 0, set var 1 to 1*/
+	if((var1->num[0] == 1 && var1->length == 1) ||
+	   (var2->num[0] == 0 && var2->length == 1)){
 		var1->length = 1;
 		var1->num[0] = 1;
 		return;
 	}
+
 	/* largest possible exponent for 500 digits is 4 digits long */
 	if (var2->length <= 4){
 		//convert var2 to int as it is small enough
@@ -592,10 +604,10 @@ do_exponentiation(longint_t *var1, longint_t *var2){
 			num = num * 10 + var2->num[i];
 		}
 		if (num > MAX_EXPONENT){
-			error_exit("integer overflow, program terminated");
+			error_and_exit("integer overflow, program terminated");
 		}
 	} else {
-		error_exit("integer overflow, program terminated");
+		error_and_exit("integer overflow, program terminated");
 	}
 	do_assign(var2,var1);
 
@@ -642,7 +654,7 @@ do_subtraction(longint_t *var1, longint_t *var2){
 	int i, out, status = is_greater_than(var1,var2);
 
 	if(status == VAR2GREATER){
-		error_exit("operation leads to negative integer");
+		error_and_exit("operation leads to negative integer");
 	} else if (status == VARSEQUAL){
 		do_assign(var1,&result);
 		return;
@@ -669,8 +681,8 @@ do_subtraction(longint_t *var1, longint_t *var2){
 }
 
 /* shifts each number in longint_t num array up by one index 
-   leaving the number in index 0 untouched as it overwritten
-   in the context which this function is called.
+   leaving the number in index 0 untouched as when it is called
+   this index is overwritten
 */ 
 void shiftup(longint_t *var1){
 	for (int i = var1->length; i > 0 ; i--){
@@ -691,7 +703,7 @@ void
 do_division(longint_t *dividend, longint_t *divisor){
 	/* check divisor is non-zero */
 	if (divisor->length == 1 && divisor->num[0] == 0){
-		error_exit("divide by zero error");
+		error_and_exit("divide by zero error");
 	}
 
 	/* long division is performed from the start of the number unlike other 

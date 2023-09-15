@@ -6,10 +6,13 @@
 #define VAR1GREATER 1
 #define VAR2GREATER 2
 
+#define LONG_ZERO {.num = {3}, .length = 1}
+
 typedef struct{
     int length;
-    int num[5];
+    int num[500];
 } longint_t;
+
 
 
 int
@@ -33,16 +36,21 @@ is_greater_than(longint_t var1, longint_t var2){
 	}
 }
 
+
 void
 do_subtraction(longint_t *var1, longint_t var2){
 	longint_t result = {.num = {0}, .length = 1};
     int out;
     int carryover = 0;
 	int i;
-	
-	if(!is_greater_than(*var1,var2)){
+	int status = is_greater_than(*var1,var2);
+
+	if(status == VAR2GREATER){
 		//print_error("Operation leads to negative integer");
 		exit(EXIT_FAILURE);
+	} else if (status == VARSEQUAL){
+		*var1 = result;
+		return;
 	}
 
     //printf("var length %d\n",var1->length);
@@ -62,21 +70,22 @@ do_subtraction(longint_t *var1, longint_t var2){
 		result.length = i + 1;
     }
     //remove leading zeros from the result
-    while(result.num[result.length - 1] == 0){
+    while(result.length > 1 && result.num[result.length - 1] == 0){
         result.length -=1;
     }
-
+	
 	*var1 = result;
 }
 
+
+
 int main(int argv, char *argc[]){
-    longint_t var1 = {.num = {3,2,2}, .length = 3};
-    longint_t var2 = {.num = {0,1,2}, .length = 3};
-    int n = 9/4;
-    do_subtraction(&var1,var2);
-    for (int i = var1.length - 1; i >= 0;i--){
-        printf("%d",var1.num[i]);
+    longint_t var3 = LONG_ZERO;
+  
+    for (int i = var3.length - 1; i >= 0;i--){
+        printf("%d",var3.num[i]);
     }
+	printf("\n%d",var3.length);
     
 
 

@@ -56,7 +56,6 @@
 #define NVARS	26	/* number of different variables */
 
 #define CH_A     'a'    /* character 'a', first variable name */
-
 #define ERROR	(-1)	/* error return value from some functions */
 #define PROMPT	"> "	/* the prompt string for interactive input */
 
@@ -71,14 +70,11 @@
 #define CH_ZERO  '0'    /* character zero */
 #define CH_ONE   '1'    /* character one */
 #define CH_NINE  '9'    /* character nine */
-
 #define CH_COM   ','    /* character ',' */
 #define PUT_COMMAS 3    /* interval between commas in output values */
 
 #define INT_ZERO 0	/* integer 0 */
 #define INT_TEN  10	/* integer 10 */
-
-
 #define LONG_ZERO {.num = {0}, .length = 1};
 #define LONG_ONE  {.num = {1}, .length = 1};
 
@@ -95,7 +91,6 @@ typedef struct{
 	int length;
 	int num[INTSIZE];
 } longint_t;
-
 
 /****************************************************************/
 
@@ -151,6 +146,7 @@ main(int argc, char *argv[]) {
 }
 
 /****************************************************************/
+
 /* Reads a line of input into the array passed as argument,
    returns false if there is no input available.
    All whitespace characters are removed on the way through.
@@ -311,7 +307,7 @@ zero_vars(longint_t vars[], int numvars) {
 	}
 }
 
-/* convert the character representation of num to an int
+/* Convert the character representation of rhs to an int
 */
 int
 parse_num(char rhs) {
@@ -345,7 +341,7 @@ do_assign(longint_t *var1, longint_t *var2) {
 /* Reverse the integer array inside longint_t
 */
 void 
-reverse_longint(longint_t *var){
+reverse_longint(longint_t *var) {
 	longint_t tmp;
 	tmp = *var;
 	int i = 0;
@@ -359,7 +355,7 @@ reverse_longint(longint_t *var){
    array so remove them by decreasing the length of the number
 */
 void
-remove_leading_zeros(longint_t *var){
+remove_leading_zeros(longint_t *var) {
 	while(var->length > 1 && var->num[var->length - 1] == 0){
         var->length -=1;
     }
@@ -381,9 +377,9 @@ print_prompt(void) {
 }
 
 /* all done, so pack up bat and ball and head home,
-	   getting the exact final lines right is a bit tedious,
-	   because input might be coming from a file and output
-	   might be going to a file */
+   getting the exact final lines right is a bit tedious,
+   because input might be coming from a file and output
+   might be going to a file */
 void
 print_tadaa() {
 	
@@ -443,26 +439,26 @@ debug_print(char message[], longint_t *var) {
 	printf("\n");
 }
 
-/* prints a message and then exits the program */
+/* prints an error message and then exits the program */
 void
-error_and_exit(char message[]){
+error_and_exit(char message[]) {
 	print_error(message);
 	exit(EXIT_FAILURE);
 }
 
 /****************************************************************/
 
-/* Update the indicated variable var1 by doing an addition
-   using var2 to compute var1 = var1 + var2
+/* add the two longint_t values using long addition method
 */
 void
 do_plus(longint_t *var1, longint_t *var2) {
-    longint_t result;
-    int out;
-    int carryover = 0;
+    longint_t output;
 	int max = var1->length > var2->length ? var1->length : var2->length;
-	int i;
+	int i, out, carryover = 0;
 
+	/* add individual indexes in the array and if it is larger than 10
+	   carry over the remaining component to the next addition operation
+	*/
     for(i = 0; i < max; i++){
 		if (i < var1->length && i < var2->length){
 			out = var1->num[i] + var2->num[i];
@@ -472,7 +468,7 @@ do_plus(longint_t *var1, longint_t *var2) {
 			out = var2->num[i];
 		}
         
-        
+		/* check for a carryover */
         if (carryover != 0){
             out += carryover;
             carryover = 0;
@@ -483,9 +479,9 @@ do_plus(longint_t *var1, longint_t *var2) {
             out -=10;
             carryover = 1;
         }
-
-        result.num[i] = out;
-		result.length = i + 1;
+		/* add the computed result to the result array*/
+        output.num[i] = out;
+		output.length = i + 1;
 		
     }
 	// check addition does not yeild a number that is too big
@@ -493,19 +489,20 @@ do_plus(longint_t *var1, longint_t *var2) {
 		error_and_exit("integer overflow, program terminated");
 	}
 	if(carryover != 0){
-		result.num[i] = carryover;
-    	result.length = i + 1;
+		output.num[i] = carryover;
+    	output.length = i + 1;
 	}
 
-	do_assign(var1,&result);
+	do_assign(var1,&output);
 }
 
 /****************************************************************/
-/* multiply the two integer arrays together using the long
+
+/* multiply the two longint_t values together using the long
 	multiplication method.
 */
 void
-do_multiplication(longint_t *var1, longint_t *var2){
+do_multiplication(longint_t *var1, longint_t *var2) {
 	/* find the number of digits in the larger number and shorter number*/
     int max = var1->length > var2->length ? var1->length : var2->length;
     int min = var1->length < var2->length ? var1->length : var2->length;
@@ -556,8 +553,8 @@ do_multiplication(longint_t *var1, longint_t *var2){
 			output[i].num[j+i] = out;	
 			output[i].length = j + i + 1;
 			if (j == max - 1 && carryover != 0){
-				/* because the carryover is non zero the final number will be 1 
-                   bigger than INTSIZE so we can determine there will an overflow 
+				/* because the carryover is not 0 the final number will be 1 
+                   bigger than INTSIZE so  there will an overflow 
 				*/
 				if ((i == min - 1) && (max + min - 1 == INTSIZE)){
 					print_error("integer overflow, program terminated");
@@ -580,8 +577,12 @@ do_multiplication(longint_t *var1, longint_t *var2){
 }
 
 /****************************************************************/
+
+/* perform exponentiation of the longint_t value using repeated
+	multiplication method.
+*/
 void
-do_exponentiation(longint_t *var1, longint_t *var2){
+do_exponentiation(longint_t *var1, longint_t *var2) {
 	int num = 0;
 	/* if the var1 is 0, set var1 to 0*/
 	if((var1->num[0] == 0 && var1->length == 1)){
@@ -609,6 +610,7 @@ do_exponentiation(longint_t *var1, longint_t *var2){
 	} else {
 		error_and_exit("integer overflow, program terminated");
 	}
+	/* copy var1 to var2 as var1 will be changed during multiplication*/
 	do_assign(var2,var1);
 
 	//printf("num: %d\n",num);
@@ -619,12 +621,11 @@ do_exponentiation(longint_t *var1, longint_t *var2){
 
 /****************************************************************/
 
-
 /* Return VAR1GREATER,VAR2GREATER or VARSEQUAL, depending on 
-   what var1 is relative to var2
+   the size of var1 relative to var2.
 */
 int
-is_greater_than(longint_t *var1, longint_t *var2){
+is_greater_than(longint_t *var1, longint_t *var2) {
 	/* quick check for differing lengths as it is faster */
 	if (var1->length > var2->length){
 		return VAR1GREATER;  
@@ -642,17 +643,19 @@ is_greater_than(longint_t *var1, longint_t *var2){
 				return VAR2GREATER;
 			}
 		}
-		/* every digit checked was equal so vars are equal */
+		/* every digit checked was equal, so vars are equal */
 		return VARSEQUAL;
 	}
 }
 
-
+/* performs subtraction on two longint_t values. Used for division.
+*/
 void
-do_subtraction(longint_t *var1, longint_t *var2){
+do_subtraction(longint_t *var1, longint_t *var2) {
 	longint_t result = LONG_ZERO;
 	int i, out, status = is_greater_than(var1,var2);
 
+	/* error checking */
 	if(status == VAR2GREATER){
 		error_and_exit("operation leads to negative integer");
 	} else if (status == VARSEQUAL){
@@ -660,13 +663,18 @@ do_subtraction(longint_t *var1, longint_t *var2){
 		return;
 	}
 
-    //printf("var length %d\n",var1->length);
+    /* perform long subtraction*/
     for(i = 0; i < var1->length ; i++){
+		/* perform borrowing if the number "ontop" is smaller than the 
+		   number below 
+		*/
         if (var1->num[i] < var2->num[i] && i < var2->length){
 			var1->num[i] += 10;
 			var1->num[i+1] -= 1;
 		}
-
+		/* only perform subtraction on the places where the
+		   magnitude is the same
+		*/
 		if (i < var1->length && i < var2->length){
 			out = var1->num[i] - var2->num[i];
 		} else {
@@ -684,7 +692,7 @@ do_subtraction(longint_t *var1, longint_t *var2){
    leaving the number in index 0 untouched as when it is called
    this index is overwritten
 */ 
-void shiftup(longint_t *var1){
+void shiftup(longint_t *var1) {
 	for (int i = var1->length; i > 0 ; i--){
 		var1->num[i]  = var1->num[i-1];
 	}
@@ -693,21 +701,22 @@ void shiftup(longint_t *var1){
 
 /* used to remove the end element of longint_t num array 
 */
-void pop(longint_t *var1){
+void pop(longint_t *var1) {
 	if (var1->length >1){
 		var1->length -=1;
 	}
 }
 
+/* perform long division on two longint_t values, disregarding the remainder
+*/
 void
-do_division(longint_t *dividend, longint_t *divisor){
+do_division(longint_t *dividend, longint_t *divisor) {
 	/* check divisor is non-zero */
 	if (divisor->length == 1 && divisor->num[0] == 0){
 		error_and_exit("divide by zero error");
 	}
 
-	/* long division is performed from the start of the number unlike other 
-       operations. for long division the dividend must be greater than divisor
+	/* for long division the dividend must be greater than divisor
 	*/
 	int status = is_greater_than(dividend,divisor);
 
@@ -721,76 +730,73 @@ do_division(longint_t *dividend, longint_t *divisor){
 		dividend->length = 1;
 		dividend->num[0] = 0;
 		return;
-	} else {
-		/* perform long division as dividend > divisor */
-		longint_t quotient = LONG_ZERO;
-		longint_t current = LONG_ZERO;
-		quotient.length = 0;
-		int count = 0, cindex = 0;
+	}
 
-		for (int i = dividend->length - 1; i >= 0; i--){
-			/* set the current value in there operation as the ith digit
-			   in the dividend, when current has been shifted up by shiftup()
-			   the new value is the old value times 10 plus new value*/
-			current.num[0] = dividend->num[i];
-			count = 0;
-			
+	/* perform long division as dividend > divisor */
+	longint_t quotient = LONG_ZERO;
+	longint_t current = LONG_ZERO;
+	quotient.length = 0;
+	int count = 0, quotient_index = 0;
+
+	for (int i = dividend->length - 1; i >= 0; i--){
+		/* set the current value as the ith digit
+			in the dividend, when current has been shifted up by shiftup()
+			the new value is the old value times 10 plus new value*/
+		current.num[0] = dividend->num[i];
+		count = 0;
+		status = is_greater_than(&current,divisor);
+
+		#if DEBUG
+		debug_print("quotient",quotient);
+		debug_print("current",current);
+		debug_print("divisor",divisor);
+		#endif 
+
+		if (status == VARSEQUAL){
+			/* any number divided by itself is 1*/
+			quotient.num[quotient_index] = 1;
+			quotient.length++;
+			quotient_index++;
+			pop(&current);
+		} else if (status == VAR1GREATER){
+			/*as the current value must be divided by the divisor
+				implemement division by subtraction for intermediary
+				operations 
+			*/
 			status = is_greater_than(&current,divisor);
-
-			#if DEBUG
-			debug_print("quotient",quotient);
-			debug_print("current",current);
-			debug_print("divisor",divisor);
-			#endif 
-
-			if (status == VARSEQUAL){
-				quotient.num[cindex] = 1;
-				quotient.length++;
-				cindex++;
-				pop(&current);
-
-			} else if (status == VAR1GREATER){
-				/*as the current value must be divided by the divisor
-				  implemement division by subtraction for intermediary
-				  operations 
-				*/
+			while(status != VAR2GREATER){
+				do_subtraction(&current,divisor);
+				count += 1;
 				status = is_greater_than(&current,divisor);
-				while(status != VAR2GREATER){
-					do_subtraction(&current,divisor);
-					count += 1;
-					status = is_greater_than(&current,divisor);
-				}
-				/* set the quotient value to the quotient of sub operation*/
-				quotient.num[cindex] = count;
-				cindex++;
-				quotient.length++;
-				/* reset the count variable for future iteration */
-				count = 0;
-				if(current.num[0] != 0 || current.length > 1){
-					/*value of current is non zero so it needs to carryover*/
-					shiftup(&current);
-				}
-			} else {
-				/* if divisor is larger than current value then set the 
-				   quotient in the current index to 0 as it will not divide*/
-				quotient.num[cindex] = 0;
-				quotient.length++;
-				cindex++;
-				if(current.num[current.length -1] != 0){
-					/*value of current is non zero so it needs to carryover 
-					  but avoid shifting up a zero value*/
-					shiftup(&current);
-				}
-			}			
-		}	
+			}
+			/* set the quotient value to the quotient of sub operation*/
+			quotient.num[quotient_index] = count;
+			quotient_index++;
+			quotient.length++;
+			/* reset the count variable for future iteration */
+			count = 0;
+			if(current.num[0] != 0 || current.length > 1){
+				/*value of current is non zero so it needs to carryover*/
+				shiftup(&current);
+			}
+		} else {
+			/* if divisor is larger than current value then set the 
+				quotient in the current index to 0 as it will not divide*/
+			quotient.num[quotient_index] = 0;
+			quotient.length++;
+			quotient_index++;
+			if(current.num[current.length -1] != 0){
+				/*value of current is non zero so it needs to carryover 
+					but avoid shifting up a zero value*/
+				shiftup(&current);
+			}
+		}			
+	}	
 	/* quotient was stored with start at index 0 of array which means 
 	   it needs to be reversed to match the way the datatype is stored
 	*/
 	reverse_longint(&quotient);
 	remove_leading_zeros(&quotient);
 	do_assign(dividend,&quotient);
-
-}
 }
 // Algorithms are fun!!!
-

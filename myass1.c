@@ -120,7 +120,6 @@ void do_exponentiation(longint_t *var1, longint_t *var2);
 int is_greater_than(longint_t *var1, longint_t *var2);
 void do_subtraction(longint_t *var1, longint_t *var2);
 void shiftup(longint_t *var1);
-void pop(longint_t *var1);
 void do_division(longint_t *dividend, longint_t *divisor);
 /****************************************************************/
 
@@ -690,20 +689,16 @@ do_subtraction(longint_t *var1, longint_t *var2) {
 
 /* shifts each number in longint_t num array up by one index 
    leaving the number in index 0 untouched as when it is called
-   this index is overwritten
+   this index is overwritten 
 */ 
 void shiftup(longint_t *var1) {
-	for (int i = var1->length; i > 0 ; i--){
-		var1->num[i]  = var1->num[i-1];
-	}
-	var1->length += 1;
-}
-
-/* used to remove the end element of longint_t num array 
-*/
-void pop(longint_t *var1) {
-	if (var1->length >1){
-		var1->length -=1;
+	if(var1->length < INTSIZE){
+		for (int i = var1->length; i > 0 ; i--){
+			var1->num[i]  = var1->num[i-1];
+		}
+		var1->length += 1;
+	} else {
+		error_and_exit("integer overflow, program terminated");
 	}
 }
 
@@ -757,7 +752,8 @@ do_division(longint_t *dividend, longint_t *divisor) {
 			quotient.num[quotient_index] = 1;
 			quotient.length++;
 			quotient_index++;
-			pop(&current);
+			current.num[0] = 0;
+			current.length = 1;
 		} else if (status == VAR1GREATER){
 			/*as the current value must be divided by the divisor
 				implemement division by subtraction for intermediary
